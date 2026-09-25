@@ -7,13 +7,14 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/notes .
 
+# backend/Dockerfile (фрагмент runtime-стадии)
 FROM alpine:3.20 AS runtime
 RUN adduser -D -H app
 WORKDIR /app
 COPY --from=builder /out/notes ./notes
-RUN chown app:app /app
+COPY healthcheck.sh ./healthcheck.sh
+RUN chmod +x /app/healthcheck.sh && chown app:app /app /app/healthcheck.sh
 USER app
 EXPOSE 8000
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD wget -qO- http://127.0.0.1:8000/ health || exit 1
-# Exec form: бинарник — PID 1 и получает SIGTERM напрямую
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD ["/app/healthcheck.sh"]
 CMD ["/app/notes"]

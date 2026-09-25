@@ -25,11 +25,6 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://notes:${DB_PASSWORD}@db:5432/notes
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1" ]
-      interval: 10s
-      timeout: 3s
-      retries: 5
     restart: unless-stopped
     deploy:
       resources:

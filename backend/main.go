@@ -27,7 +27,7 @@ func main() {
 		ReadTimeout: 5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-	
+
 	// Graceful shutdown: SIGTERM/SIGINT → http.Server.Shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
@@ -39,7 +39,7 @@ func main() {
 		}
 	}()
 
-	<-ctx
+	<-ctx.Done()
 	log.Println("SIGTERM received, shutting down gracefully...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

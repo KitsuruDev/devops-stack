@@ -3,3 +3,5 @@ bin/
 *.test
 .env
 nginx/ssl/
+frontend/node_modules/
+frontend/dist/

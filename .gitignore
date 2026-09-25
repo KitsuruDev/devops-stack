@@ -1,1 +1,4 @@
+frontend/node_modules/
+frontend/dist/
+.env
 nginx/ssl/

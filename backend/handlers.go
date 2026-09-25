@@ -50,19 +50,24 @@ func listNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func addNote(w http.ResponseWriter, r *http.Request) {
-	var n Note
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&n); err != nil {
-		http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
-		return
-	}
-	id, err := pool.QueryRow(r.Context(), "INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING id", n.Title, n.Body).Scan()
-	if err != nil {
-		http.Error(w, `{"error":"db error"}`, http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]int64{"id": id})
+    var n Note
+    if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&n); err != nil {
+        http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+        return
+    }
+
+    var id int64
+    err := pool.QueryRow(r.Context(),
+        "INSERT INTO notes (title, body) VALUES ($1, $2) RETURNING id",
+        n.Title, n.Body).Scan(&id)
+    if err != nil {
+        http.Error(w, `{"error":"db error"}`, http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(map[string]int64{"id": id})
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

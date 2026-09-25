@@ -9,22 +9,24 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notes -d notes"]
-      nterval: 5s
+      test: [ "CMD-SHELL", "pg_isready -U notes -d notes" ]
+      interval: 5s
       timeout: 3s
       retries: 10
-      restart: unless-stopped
+    restart: unless-stopped
+    networks:
+      - notes-net
 
   backend:
     build:
       context: ./backend
     depends_on:
       db:
-        condition: service_healthy # не «запущен», а «готов принимать соединения»
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://notes:${DB_PASSWORD}@db:5432/notes
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -34,31 +36,37 @@ services:
         limits:
           memory: 256M
           cpus: "1"
+    networks:
+      - notes-net
 
   frontend:
-    build: ./frontend
-    depends_on:
-      - backend
+    build:
+      context: ./frontend
     restart: unless-stopped
+    networks:
+      - notes-net
 
   nginx:
-    build:
-      context: ./nginx
-      # BuildKit secrets: сертификат не попадает в git, а используется только на сборке
-      # (запуск через docker build с --secret см. выше; здесь — только для локального dev)
+    image: notes-nginx
     depends_on:
       - backend
       - frontend
     ports:
-      - "8443:8443" # https://localhost:8443
+      - "8443:8443"
     restart: unless-stopped
+    networks:
+      - notes-net
 
-# Необязательный сервис — доступный только через profile
   adminer:
     image: adminer
     profiles: ["debug"]
     ports:
       - "8081:8080"
+    networks:
+      - notes-net
 
 volumes:
   db_data:
+
+networks:
+  notes-net:

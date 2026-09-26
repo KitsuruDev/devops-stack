@@ -25,7 +25,7 @@ RUN chown -R nginx:nginx /etc/nginx/ssl && \
     chmod 644 /etc/nginx/ssl/server.crt && \
     chmod 600 /etc/nginx/ssl/server.key
 
-EXPOSE 8443
+EXPOSE 80 8443
 
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
   CMD wget -qO- https://127.0.0.1:8443/healthz --no-check-certificate || exit 1

@@ -23,12 +23,11 @@ variables:
   image: docker:27-cli
   services:
     - name: docker:27-dind
-      alias: docker
+      alias: dockerd
+      command: ["--tls=false"]
   variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_HOST: "tcp://docker:2376"
-    DOCKER_TLS_VERIFY: "1"
-    DOCKER_CERT_PATH: "/certs/client"
+    DOCKER_HOST: "tcp://dockerd:2375"
+    DOCKER_TLS_CERTDIR: ""
 
 lint:go:
   extends: .go-base

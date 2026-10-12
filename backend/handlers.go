@@ -19,17 +19,27 @@ type Note struct {
 func health(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	dbOK := pool.Ping(ctx) == nil
+
+	dbOK := false
+	if pool != nil {
+		dbOK = pool.Ping(ctx) == nil
+	}
+
 	status := "ok"
 	if !dbOK {
 		status = "degraded"
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{"status": status, "db": dbOK})
 }
 
 func listNotes(w http.ResponseWriter, r *http.Request) {
+	if pool == nil {
+		http.Error(w, `{"error":"db not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
 	rows, err := pool.Query(r.Context(), "SELECT id, title, body FROM notes ORDER BY id")
 	if err != nil {
 		http.Error(w, `{"error":"db error"}`, http.StatusInternalServerError)
@@ -50,6 +60,10 @@ func listNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func addNote(w http.ResponseWriter, r *http.Request) {
+    if pool == nil {
+		http.Error(w, `{"error":"db not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
     var n Note
     if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&n); err != nil {
         http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
@@ -77,7 +91,11 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 }
 
 func getNote(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
+	if pool == nil {
+		http.Error(w, `{"error":"db not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+        idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})

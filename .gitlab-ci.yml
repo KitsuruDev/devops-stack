@@ -100,7 +100,8 @@ deploy:
         cd /opt/devops-stack &&
         mv .env.deploy .env && chmod 600 .env &&
         echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY' &&
-        docker compose pull && docker compose up -d &&
+        docker compose -f docker-compose.deploy.yml pull &&
+        docker compose -f docker-compose.deploy.yml up -d &&
         docker image prune -f
       "
   rules:

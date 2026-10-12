@@ -1,0 +1,119 @@
+stages:
+  - verify
+  - build
+  - deploy
+
+variables:
+  BACKEND_IMAGE: "${CI_REGISTRY_IMAGE}/backend"
+  FRONTEND_IMAGE: "${CI_REGISTRY_IMAGE}/frontend"
+  TAG: "${CI_COMMIT_SHORT_SHA}"
+
+.go-base:
+  image: golang:1.22-alpine
+  before_script:
+    - apk add --no-cache git curl
+
+.node-base:
+  image: node:22-alpine
+  before_script:
+    - apk add --no-cache git curl
+
+.dind-build:
+  tags: [dind]
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+      alias: docker
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: "tcp://docker:2376"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "/certs/client"
+
+lint:go:
+  extends: .go-base
+  stage: verify
+  needs: []
+  script:
+    - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1
+    - cd backend && golangci-lint run --timeout=5m
+
+lint:frontend:
+  extends: .node-base
+  stage: verify
+  needs: []
+  script:
+    - cd frontend && npm ci
+    - cd frontend && npm run lint
+
+test:unit:
+  extends: .go-base
+  stage: verify
+  needs: []
+  script:
+    - cd backend && go test ./... -v -count=1
+
+build:backend:
+  extends: .dind-build
+  stage: build
+  needs: [lint:go, test:unit]
+  before_script:
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build -t "$BACKEND_IMAGE:$TAG" ./backend
+    - docker push "$BACKEND_IMAGE:$TAG"
+
+build:frontend:
+  extends: .dind-build
+  stage: build
+  needs: [lint:frontend]
+  before_script:
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build -t "$FRONTEND_IMAGE:$TAG" ./frontend
+    - docker push "$FRONTEND_IMAGE:$TAG"
+
+deploy:
+  image: debian:bookworm
+  stage: deploy
+  needs: [build:backend, build:frontend]
+  environment:
+    name: production
+  variables:
+    IMAGE_TAG: "$TAG"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client ca-certificates >/dev/null
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh && ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+  script:
+    - |
+      printf 'REGISTRY=%s\nIMAGE_TAG=%s\nDB_PASSWORD=%s\n' \
+        "$CI_REGISTRY" "$IMAGE_TAG" "$DB_PASSWORD" > .env.deploy
+    - scp deploy/docker-compose.deploy.yml .env.deploy "$DEPLOY_USER@$DEPLOY_HOST:/opt/devops-stack/"
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_HOST" "
+        cd /opt/devops-stack &&
+        mv .env.deploy .env && chmod 600 .env &&
+        echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY' &&
+        docker compose pull && docker compose up -d &&
+        docker image prune -f
+      "
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - when: never
+
+smoke:
+  image: curlimages/curl:latest
+  stage: deploy
+  needs: [deploy]
+  script:
+    - curl -fsSk https://web-server-1:8443/api/health
+    - curl -fsSk -o /dev/null -w "HTTP %{http_code}\n" https://web-server-1:8443/
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+    - when: never

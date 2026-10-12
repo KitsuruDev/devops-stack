@@ -43,8 +43,9 @@ lint:frontend:
   stage: verify
   needs: []
   script:
-    - cd frontend && npm ci
-    - cd frontend && npm run lint
+    - cd frontend
+    - npm ci
+    - npm run lint
 
 test:unit:
   extends: .go-base

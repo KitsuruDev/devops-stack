@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"log"
 )
 
 type Note struct {
@@ -30,9 +31,7 @@ func health(w http.ResponseWriter, r *http.Request) {
 		status = "degraded"
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]any{"status": status, "db": dbOK})
+	writeJSON(w, http.StatusOK, map[string]any{"status": status, "db": dbOK})
 }
 
 func listNotes(w http.ResponseWriter, r *http.Request) {
@@ -55,8 +54,8 @@ func listNotes(w http.ResponseWriter, r *http.Request) {
 		}
 		notes = append(notes, n)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(notes)
+
+	writeJSON(w, http.StatusOK, notes)
 }
 
 func addNote(w http.ResponseWriter, r *http.Request) {
@@ -79,15 +78,7 @@ func addNote(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(map[string]int64{"id": id})
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v)
+    writeJSON(w, http.StatusCreated, map[string]int64{"id": id})
 }
 
 func getNote(w http.ResponseWriter, r *http.Request) {
@@ -108,4 +99,12 @@ func getNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, n)
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("writeJSON: %v", err)
+	}
 }

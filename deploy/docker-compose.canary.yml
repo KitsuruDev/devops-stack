@@ -1,0 +1,13 @@
+services:
+  backend-canary:
+    image: ${REGISTRY}/devops/devops-stack/backend:${CANARY_TAG}
+    environment:
+      DATABASE_URL: postgres://notes:${DB_PASSWORD}@db:5432/notes
+    ports:
+      - "8444:8000"
+    restart: unless-stopped
+    networks:
+      - devops-stack_default
+networks:
+  devops-stack_default:
+    external: true

@@ -116,9 +116,15 @@ smoke:
   variables:
     SMOKE_HOST: "192.168.0.200"
   script:
-    - echo "=== Smoke test (self-signed TLS – -k) ==="
+    - echo "=== Smoke test ==="
+    - echo "1) Health endpoint"
     - curl -fsSk "https://$SMOKE_HOST:8443/health"
+    - echo
+    - echo "2) SPA (nginx → frontend)"
     - curl -fsSk -o /dev/null -w "HTTP %{http_code}\n" "https://$SMOKE_HOST:8443/"
+    - echo "3) API (nginx → backend → postgres)"
+    - curl -fsSk "https://$SMOKE_HOST:8443/api/notes" > /dev/null
+    - echo "API OK"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: on_success

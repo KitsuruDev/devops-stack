@@ -8,7 +8,7 @@ OK=0
 
 i=1
 while [ "$i" -le 100 ]; do
-    if curl -fsSk "https://$HOST:8444/health" >/dev/null 2>&1; then
+    if curl -fsSk "http://$HOST:8444/health" >/dev/null 2>&1; then
         OK=$((OK + 1))
     fi
     i=$((i + 1))

@@ -188,6 +188,7 @@ deploy:blue:
   script:
     - scp deploy/docker-compose.blue.yml deploy/switch.sh deploy/smoke-color.sh "$DEPLOY_USER@$DEPLOY_HOST:/opt/devops-stack/"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/devops-stack && printf 'REGISTRY=%s\nIMAGE_TAG=%s\nDB_PASSWORD=%s\n' '$CI_REGISTRY' '$IMAGE_TAG' '$DB_PASSWORD' > .env.blue"
+    - ssh "$DEPLOY_USER@$DEPLOY_HOST" "echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY'"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/devops-stack && docker compose -p blue -f docker-compose.blue.yml --env-file .env.blue up -d"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "sleep 15"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/devops-stack && sh smoke-color.sh 9443"
@@ -211,6 +212,7 @@ deploy:green:
   script:
     - scp deploy/docker-compose.green.yml deploy/switch.sh deploy/smoke-color.sh "$DEPLOY_USER@$DEPLOY_HOST:/opt/devops-stack/"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/devops-stack && printf 'REGISTRY=%s\nIMAGE_TAG=%s\nDB_PASSWORD=%s\n' '$CI_REGISTRY' '$IMAGE_TAG' '$DB_PASSWORD' > .env.green"
+    - ssh "$DEPLOY_USER@$DEPLOY_HOST" "echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY'"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/devops-stack && docker compose -p green -f docker-compose.green.yml --env-file .env.green up -d"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "sleep 15"
     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/devops-stack && sh smoke-color.sh 9445"

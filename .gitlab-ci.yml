@@ -59,17 +59,27 @@ test:unit:
     - cd backend && go test ./... -v -count=1
 
 # 5.2: Артефакты зависимостей
-deps:list:
+deps:go:
   extends: .go-base
   stage: verify
   needs: []
   script:
     - cd backend && go mod download && go list -m all > ../go.mod.all
-    - cd ../frontend && npm ci --no-audit --no-fund && npm ls --omit=dev > ../npm.ls
   artifacts:
     when: always
     paths:
       - go.mod.all
+    expire_in: 7 days
+
+deps:frontend:
+  extends: .node-base
+  stage: verify
+  needs: []
+  script:
+    - cd frontend && npm ci --no-audit --no-fund && npm ls --omit=dev > ../npm.ls
+  artifacts:
+    when: always
+    paths:
       - npm.ls
     expire_in: 7 days
 

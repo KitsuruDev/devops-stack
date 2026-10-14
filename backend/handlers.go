@@ -39,7 +39,7 @@ func listNotes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"db not initialized"}`, http.StatusServiceUnavailable)
 		return
 	}
-	rows, err := pool.Query(r.Context(), "SELECT id, title, body FROM notes_table ORDER BY id")
+	rows, err := pool.Query(r.Context(), "SELECT id, title, body FROM notes ORDER BY id")
 	if err != nil {
 		http.Error(w, `{"error":"db error"}`, http.StatusInternalServerError)
 		return

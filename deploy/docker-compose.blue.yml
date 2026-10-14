@@ -1,0 +1,34 @@
+services:
+  backend:
+    image: ${REGISTRY}/devops/devops-stack/backend:${IMAGE_TAG}
+    environment:
+      DATABASE_URL: postgres://notes:${DB_PASSWORD}@db:5432/notes
+    restart: unless-stopped
+    networks:
+      - blue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    image: ${REGISTRY}/devops/devops-stack/frontend:${IMAGE_TAG}
+    restart: unless-stopped
+    networks:
+      - blue-net
+
+  nginx:
+    image: notes-nginx
+    ports:
+      - "9443:8443"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - blue-net
+
+networks:
+  blue-net:
+    external: true

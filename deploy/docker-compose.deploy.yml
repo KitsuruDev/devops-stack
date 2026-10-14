@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16
+    pull_policy: if_not_present
     environment:
       POSTGRES_USER: notes
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -36,6 +37,7 @@ services:
 
   nginx:
     image: notes-nginx   # собран вручную на web-server-1
+    pull_policy: never
     depends_on:
       - backend
       - frontend

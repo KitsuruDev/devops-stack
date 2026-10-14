@@ -6,6 +6,7 @@ stages:
 variables:
   BACKEND_IMAGE: "${CI_REGISTRY_IMAGE}/backend"
   FRONTEND_IMAGE: "${CI_REGISTRY_IMAGE}/frontend"
+  TAG: "$CI_COMMIT_SHORT_SHA"
 
 # ========== ШАБЛОНЫ ==========
 .go-base:
@@ -56,7 +57,6 @@ test:unit:
   script:
     - cd backend && go test ./... -v -count=1
 
-# 5.2: Артефакты зависимостей
 deps:go:
   extends: .go-base
   stage: verify
@@ -90,8 +90,7 @@ build:backend:
     - docker info
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
-    - TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-    - echo "Building with tag: $TAG"
+    - echo "Building with tag $TAG"
     - docker build -t "$BACKEND_IMAGE:$TAG" ./backend
     - docker push "$BACKEND_IMAGE:$TAG"
 
@@ -103,8 +102,7 @@ build:frontend:
     - docker info
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
-    - TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-    - echo "Building with tag: $TAG"
+    - echo "Building with tag $TAG"
     - docker build -t "$FRONTEND_IMAGE:$TAG" ./frontend
     - docker push "$FRONTEND_IMAGE:$TAG"
 
@@ -115,17 +113,15 @@ deploy:
   needs: [build:backend, build:frontend]
   environment:
     name: production
+  variables:
+    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
   before_script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client ca-certificates >/dev/null
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh && ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
   script:
-    - |
-      if [ -z "$IMAGE_TAG" ]; then
-        IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-      fi
-      echo "Deploying IMAGE_TAG=$IMAGE_TAG"
+    - echo "Deploying IMAGE_TAG=$IMAGE_TAG"
     - |
       printf 'REGISTRY=%s\nIMAGE_TAG=%s\nDB_PASSWORD=%s\n' \
         "$CI_REGISTRY" "$IMAGE_TAG" "$DB_PASSWORD" > .env.deploy
@@ -140,7 +136,7 @@ deploy:
         docker image prune -f
       "
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - if: '$CI_COMMIT_TAG'
       when: manual
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
@@ -163,30 +159,27 @@ smoke:
     - curl -fsSk "https://$SMOKE_HOST:8443/api/notes" > /dev/null
     - echo "API OK"
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - if: '$CI_COMMIT_TAG'
       when: on_success
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: on_success
     - when: never
 
-# ========== 5.4: CANARY ==========
+# ========== CANARY ==========
 canary:
   image: debian:bookworm
   stage: deploy
   needs: [deploy]
   variables:
     SMOKE_HOST: "192.168.0.200"
+    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
   before_script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client curl ca-certificates >/dev/null
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh && ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
   script:
-    - |
-      if [ -z "$IMAGE_TAG" ]; then
-        IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-      fi
-      echo "Canary tag: $IMAGE_TAG"
+    - echo "Canary tag: $IMAGE_TAG"
     - scp deploy/docker-compose.canary.yml "$DEPLOY_USER@$DEPLOY_HOST:/opt/devops-stack/"
     - |
       ssh "$DEPLOY_USER@$DEPLOY_HOST" "
@@ -202,7 +195,7 @@ canary:
       echo "canary OK: $OK/100"
       test "$OK" -ge 99
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - if: '$CI_COMMIT_TAG'
       when: manual
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual

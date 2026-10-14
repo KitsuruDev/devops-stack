@@ -113,9 +113,12 @@ smoke:
   image: curlimages/curl:latest
   stage: deploy
   needs: [deploy]
+  variables:
+    SMOKE_HOST: "192.168.0.200"
   script:
-    - curl -fsSk https://web-server-1:8443/api/health
-    - curl -fsSk -o /dev/null -w "HTTP %{http_code}\n" https://web-server-1:8443/
+    - echo "=== Smoke test (self-signed TLS – -k) ==="
+    - curl -fsSk "https://$SMOKE_HOST:8443/health"
+    - curl -fsSk -o /dev/null -w "HTTP %{http_code}\n" "https://$SMOKE_HOST:8443/"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: on_success
